@@ -1,7 +1,7 @@
 import { GComment } from '../../lib/types/github';
 import { GITHUB_GRAPHQL_API_URL } from '../config';
 
-const ADD_DISCUSSION_COMMENT_QUERY = `
+export const ADD_DISCUSSION_COMMENT_QUERY = `
   mutation($body: String!, $discussionId: ID!) {
     addDiscussionComment(input: {body: $body, discussionId: $discussionId}) {
       comment {

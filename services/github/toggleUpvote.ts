@@ -1,6 +1,6 @@
 import { GITHUB_GRAPHQL_API_URL } from '../config';
 
-const TOGGLE_UPVOTE_QUERY = (mode: 'Add' | 'Remove') => `
+export const TOGGLE_UPVOTE_QUERY = (mode: 'Add' | 'Remove') => `
   mutation($upvoteInput: ${mode}UpvoteInput!) {
     toggleUpvote: ${mode.toLowerCase()}Upvote(input: $upvoteInput) {
       subject {

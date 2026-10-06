@@ -22,7 +22,9 @@ interface ContentsResponse {
 
 export async function getFile(repoWithOwner: string, path: string, token?: string) {
   const response = await fetch(`${GITHUB_REPOS_API_URL}/${repoWithOwner}/contents/${path}`, {
-    headers: token ? { Authorization: `token ${token}` } : {},
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+    headers: { 'User-Agent': 'gitblog', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
 
   if (response.status === 404) {

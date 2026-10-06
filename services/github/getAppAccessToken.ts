@@ -1,62 +1,49 @@
 import { getJWT } from '../../lib/jwt';
-
-import { GITHUB_REPO_INSTALLATION_URL, GITHUB_ACCESS_TOKEN_URL } from '../config';
-import { TokenCache } from '../cache';
-
-interface GAccessToken {
-  token: string;
-  expires_at: string;
-  permissions: {
-    discussions: string;
-    metadata: string;
-  };
-  repository_selection: string;
-  repositories?: Array<unknown>;
+export async function githubJson(path: string, token: string, init: RequestInit = {}) {
+  const response = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'gitblog',
+      'Content-Type': 'application/json',
+      ...init.headers,
+    },
+  });
+  if (!response.ok) throw new Error(`GitHub request failed (${response.status}).`);
+  return response.json();
 }
-
-function getHeaders() {
-  return {
-    Authorization: `Bearer ${getJWT()}`,
-    Accept: 'application/vnd.github.v3+json',
-  };
+export function validRepo(repo: string) {
+  if (!/^[a-zA-Z0-9-]{1,39}\/[a-zA-Z0-9_.-]{1,100}$/.test(repo))
+    throw new Error('Invalid repository.');
+  return repo.toLowerCase();
 }
-
-async function getInstallationId(repoWithOwner: string): Promise<number> {
-  const { id } = await fetch(GITHUB_REPO_INSTALLATION_URL(repoWithOwner), {
-    headers: getHeaders(),
-  }).then((response) => response.json());
-  return id;
-}
-
-export async function getAppAccessToken(repoWithOwner: string): Promise<string> {
-  const installationId = await getInstallationId(repoWithOwner);
-  if (!installationId)
-    throw {
-      message: 'giscus is not installed on this repository',
-      documentation_url:
-        'https://docs.github.com/en/rest/reference/apps#get-a-repository-installation-for-the-authenticated-app',
-    };
-
-  const { token: cached, created_at } = (await TokenCache.get(installationId)) || {};
-  if (cached) return cached;
-
-  const response = await fetch(GITHUB_ACCESS_TOKEN_URL(installationId), {
+export async function getAppAccessToken(repoWithOwner: string, writable = false): Promise<string> {
+  const repo = validRepo(repoWithOwner);
+  const jwt = getJWT();
+  const installation = await githubJson(`/repos/${repo}/installation`, jwt);
+  if (
+    installation.suspended_at ||
+    String(installation.app_id) !== process.env.GITHUB_APP_ID ||
+    installation.permissions?.discussions !== 'write'
+  )
+    throw new Error('Install the gitblog App with Discussions access.');
+  const credential = await githubJson(`/app/installations/${installation.id}/access_tokens`, jwt, {
     method: 'POST',
-    headers: getHeaders(),
+    body: JSON.stringify({
+      repositories: [repo.split('/')[1]],
+      permissions: { discussions: writable ? 'write' : 'read', contents: 'read', metadata: 'read' },
+    }),
   });
-  if (!response.ok)
-    throw {
-      message: 'Failed fetching access token',
-    };
-
-  const { token, expires_at }: GAccessToken = await response.json();
-
-  await TokenCache.set({
-    installation_id: installationId,
-    token,
-    expires_at,
-    ...(created_at ? {} : { created_at: new Date().toISOString() }),
-  });
-
-  return token;
+  const metadata = await githubJson(`/repos/${repo}`, credential.token);
+  if (
+    metadata.private ||
+    metadata.archived ||
+    !metadata.has_discussions ||
+    metadata.full_name.toLowerCase() !== repo
+  )
+    throw new Error('A public, active Discussions repository is required.');
+  return credential.token;
 }

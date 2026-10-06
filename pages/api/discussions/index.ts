@@ -1,13 +1,11 @@
+import { sessionFrom, requireSameOrigin } from '../../../lib/gitblog-session';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getDiscussion } from '../../../services/github/getDiscussion';
 import { adaptDiscussion } from '../../../lib/adapter';
 import { IError, IGiscussion } from '../../../lib/types/adapter';
-import { createDiscussion, CreateDiscussionBody } from '../../../services/github/createDiscussion';
+import { createDiscussion } from '../../../services/github/createDiscussion';
 import { GRepositoryDiscussion } from '../../../lib/types/github';
 import { getAppAccessToken } from '../../../services/github/getAppAccessToken';
-import { addCorsHeaders } from '../../../lib/cors';
-import { digestMessage } from '../../../lib/utils';
-import { check } from '../../../services/github/oauth';
 
 async function get(req: NextApiRequest, res: NextApiResponse<IGiscussion | IError>) {
   const params = {
@@ -25,7 +23,8 @@ async function get(req: NextApiRequest, res: NextApiResponse<IGiscussion | IErro
     params.first = 20;
   }
 
-  const userToken = req.headers.authorization?.split('Bearer ')[1];
+  await getAppAccessToken(params.repo);
+  const userToken = req.headers.authorization ? sessionFrom(req, params.repo).token : undefined;
   let token = userToken;
   if (!token) {
     try {
@@ -91,43 +90,52 @@ async function get(req: NextApiRequest, res: NextApiResponse<IGiscussion | IErro
   res.status(200).json(adapted);
 }
 
-async function post(req: NextApiRequest, res: NextApiResponse<{ id: string } | IError>) {
-  const userToken = req.headers.authorization?.split('Bearer ')[1];
-  if (!(await check(userToken))) {
-    res.status(403).json({ error: 'Invalid or missing access token.' });
-    return;
-  }
-
+async function post(req: NextApiRequest, res: NextApiResponse) {
+  requireSameOrigin(req);
   const { repo, input } = req.body;
-  const params: CreateDiscussionBody = { input };
-  const hashTag = `<!-- sha1: ${await digestMessage(params.input.title)} -->`;
-
-  params.input.body = `${params.input.body}\n\n${hashTag}`;
-
-  let token: string;
-  try {
-    token = await getAppAccessToken(repo);
-  } catch (error) {
-    res.status(403).json({ error: error.message });
-    return;
-  }
-
-  const response = await createDiscussion(token, params);
+  const session = sessionFrom(req, repo);
+  const appToken = await getAppAccessToken(repo, true);
+  const categoryResult = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${appToken}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'gitblog',
+    },
+    body: JSON.stringify({
+      query:
+        'query($id:ID!){node(id:$id){... on DiscussionCategory{repository{id nameWithOwner}}}}',
+      variables: { id: input.categoryId },
+    }),
+  }).then((r) => r.json());
+  const categoryRepo = categoryResult.data?.node?.repository;
+  if (
+    categoryRepo?.nameWithOwner.toLowerCase() !== session.repo ||
+    categoryRepo.id !== input.repositoryId ||
+    !/^giscus-post-[a-f0-9]{16}$/.test(input.title) ||
+    typeof input.body !== 'string' ||
+    input.body.length > 10000
+  )
+    throw new Error('Invalid discussion scope.');
+  const response = await createDiscussion(appToken, { input });
   const id = response?.data?.createDiscussion?.discussion?.id;
-
   if (!id) {
-    res.status(400).json({ error: 'Unable to create discussion with request body.' });
+    res.status(400).json({ error: 'Unable to create discussion.' });
     return;
   }
-
-  res.status(200).json({ id });
+  res.json({ id });
 }
 
 export default async function DiscussionsApi(req: NextApiRequest, res: NextApiResponse) {
-  addCorsHeaders(req, res);
-  if (req.method === 'POST') {
-    await post(req, res);
-    return;
+  res.setHeader('Cache-Control', 'private, no-store');
+  try {
+    if (req.method === 'POST') {
+      await post(req, res);
+      return;
+    }
+    await get(req, res);
+  } catch (cause) {
+    console.error('Comment access failed:', cause instanceof Error ? cause.message : 'unknown');
+    res.status(403).json({ error: 'Repository access or comment session is invalid.' });
   }
-  await get(req, res);
 }

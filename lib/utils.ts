@@ -1,14 +1,6 @@
 import { AvailableTheme, availableThemes, Theme } from './variables';
 
-export let webcrypto: Crypto;
-
-if (typeof window === 'undefined') {
-  import('crypto').then((module) => {
-    webcrypto = module.webcrypto as Crypto;
-  });
-} else {
-  webcrypto = window.crypto;
-}
+export const webcrypto = globalThis.crypto;
 
 function isAvailableTheme(theme: Theme): theme is AvailableTheme {
   return availableThemes.includes(theme as AvailableTheme);

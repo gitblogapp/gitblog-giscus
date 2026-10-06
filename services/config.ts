@@ -2,9 +2,11 @@
 
 const GITHUB_API_HOST = 'https://api.github.com';
 
-export const GITHUB_GRAPHQL_API_URL = `${GITHUB_API_HOST}/graphql`;
+export const GITHUB_GRAPHQL_API_URL =
+  typeof window === 'undefined' ? `${GITHUB_API_HOST}/graphql` : '/api/gitblog/graphql';
 
-export const GITHUB_MARKDOWN_API_URL = `${GITHUB_API_HOST}/markdown`;
+export const GITHUB_MARKDOWN_API_URL =
+  typeof window === 'undefined' ? `${GITHUB_API_HOST}/markdown` : '/api/gitblog/markdown';
 
 export const GITHUB_REPOS_API_URL = `${GITHUB_API_HOST}/repos`;
 

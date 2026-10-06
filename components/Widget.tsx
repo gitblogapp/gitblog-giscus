@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import Giscus from '../components/Giscus';
-import { AuthContext, ConfigContext, getLoginUrl } from '../lib/context';
+import { AuthContext, ConfigContext } from '../lib/context';
 import { emitData } from '../lib/messages';
 import { IErrorMessage, IResizeHeightMessage, ISignOutMessage } from '../lib/types/giscus';
 import { cleanAnchor } from '../lib/utils';
@@ -74,7 +74,14 @@ export default function Widget({ origin, session }: IWidgetProps) {
   const ready = (!session || token) && repo && (term || number);
 
   return ready ? (
-    <AuthContext.Provider value={{ token, origin, getLoginUrl, onSignOut: handleSignOut }}>
+    <AuthContext.Provider
+      value={{
+        token,
+        origin,
+        getLoginUrl: (returnTo) => `/giscus/login?${new URLSearchParams({ repo, returnTo })}`,
+        onSignOut: handleSignOut,
+      }}
+    >
       <Giscus onDiscussionCreateRequest={handleDiscussionCreateRequest} onError={handleError} />
     </AuthContext.Provider>
   ) : null;

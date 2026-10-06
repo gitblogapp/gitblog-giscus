@@ -44,3 +44,10 @@ public/themes/
 
 # CSS variables purging script (for development)
 styles/themes/reference.css
+
+.open-next
+.wrangler
+.dev.vars*
+.env*
+!.env.example
+*.tsbuildinfo

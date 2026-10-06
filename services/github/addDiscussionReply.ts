@@ -1,7 +1,7 @@
 import { GReply } from '../../lib/types/github';
 import { GITHUB_GRAPHQL_API_URL } from '../config';
 
-const ADD_DISCUSSION_REPLY_QUERY = `
+export const ADD_DISCUSSION_REPLY_QUERY = `
   mutation($body: String!, $discussionId: ID!, $replyToId: ID!) {
     addDiscussionReply: addDiscussionComment(input: {body: $body, discussionId: $discussionId, replyToId: $replyToId}) {
       reply: comment {

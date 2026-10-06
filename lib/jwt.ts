@@ -1,15 +1,7 @@
-import { sign } from 'jsonwebtoken';
-import { env } from './variables';
-
+import { sign } from 'node:crypto';
 export function getJWT() {
   const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    // Issued at time, 60 seconds in the past to allow for clock drift
-    iat: now - 60,
-    // JWT expiration time (10 minute maximum)
-    exp: now + 10 * 60,
-    // GitHub App's identifier
-    iss: env.app_id,
-  };
-  return sign(payload, env.private_key, { algorithm: 'RS256' });
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const payload = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode({ iat: now - 60, exp: now + 540, iss: process.env.GITHUB_APP_ID })}`;
+  return `${payload}.${sign('RSA-SHA256', Buffer.from(payload), process.env.GITHUB_PRIVATE_KEY).toString('base64url')}`;
 }

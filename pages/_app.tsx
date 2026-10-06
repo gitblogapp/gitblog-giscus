@@ -1,7 +1,3 @@
-if (process.env.NODE_ENV === 'development') {
-  import('preact/debug');
-}
-
 import 'tailwindcss/tailwind.css';
 import '../styles/base.css';
 import '../styles/globals.css';

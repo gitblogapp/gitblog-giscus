@@ -1,3 +1,4 @@
+import { sessionFrom } from '../../../lib/gitblog-session';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { addCorsHeaders } from '../../../lib/cors';
 import { ICategories, IError } from '../../../lib/types/adapter';
@@ -13,7 +14,8 @@ export default async function DiscussionCategoriesApi(
   const params = { repo: req.query.repo as string };
   const result = { repositoryId: '', categories: [] };
 
-  let token = req.headers.authorization?.split('Bearer ')[1];
+  await getAppAccessToken(params.repo);
+  let token = req.headers.authorization ? sessionFrom(req, params.repo).token : undefined;
   if (!token) {
     try {
       token = await getAppAccessToken(params.repo);

@@ -1,0 +1,17 @@
+{
+  "name": "gitblog-giscus",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "GITHUB_APP_ID": "5208579",
+    "GITHUB_CLIENT_ID": "Iv23li5EGiO805NYco3r",
+    "NEXT_PUBLIC_GISCUS_APP_HOST": "https://gitblog.app",
+  },
+}

@@ -44,7 +44,9 @@ export async function getDiscussionCategories(
 
   return fetch(GITHUB_GRAPHQL_API_URL, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+    headers: { 'User-Agent': 'gitblog', Authorization: `Bearer ${token}` },
 
     body: JSON.stringify({
       query: GET_DISCUSSION_CATEGORIES_QUERY,

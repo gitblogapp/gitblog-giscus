@@ -30,7 +30,10 @@ export async function createDiscussion(
 ): Promise<CreateDiscussionResponse> {
   return fetch(GITHUB_GRAPHQL_API_URL, {
     method: 'POST',
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
     headers: {
+      'User-Agent': 'gitblog',
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },

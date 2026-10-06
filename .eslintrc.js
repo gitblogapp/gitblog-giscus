@@ -34,5 +34,5 @@ module.exports = {
       version: 'detect',
     },
   },
-  ignorePatterns: ['public/**'],
+  ignorePatterns: ['public/**', 'next-env.d.ts', '.open-next/**', '.next/**', '.wrangler/**'],
 };

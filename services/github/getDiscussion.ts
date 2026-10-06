@@ -155,7 +155,9 @@ export async function getDiscussion(
 
   return fetch(GITHUB_GRAPHQL_API_URL, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(20000),
+    headers: { 'User-Agent': 'gitblog', Authorization: `Bearer ${token}` },
 
     body: JSON.stringify({
       query: gql,

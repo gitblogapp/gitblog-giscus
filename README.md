@@ -1,3 +1,5 @@
+> This is the gitblog fork. See [GITBLOG.md](GITBLOG.md) for Cloudflare deployment and the shared GitHub App integration. The original widget UI and upstream attribution are preserved.
+
 # [giscus][giscus]
 
 A comments system powered by [GitHub Discussions][discussions]. Let visitors leave comments and reactions on your website via GitHub! Heavily inspired by [utterances][utterances].

@@ -1,7 +1,7 @@
 import { Reaction } from '../../lib/reactions';
 import { GITHUB_GRAPHQL_API_URL } from '../config';
 
-const TOGGLE_REACTION_QUERY = (mode: 'add' | 'remove') => `
+export const TOGGLE_REACTION_QUERY = (mode: 'add' | 'remove') => `
   mutation($content: ReactionContent!, $subjectId: ID!) {
     toggleReaction: ${mode}Reaction(input: {content: $content, subjectId: $subjectId}) {
       reaction {

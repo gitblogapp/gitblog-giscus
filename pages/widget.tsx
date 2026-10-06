@@ -4,10 +4,10 @@ import { ContextType, useContext, useEffect, useState } from 'react';
 import Widget from '../components/Widget';
 import { assertOrigin } from '../lib/config';
 import { ConfigContext, ThemeContext } from '../lib/context';
-import { decodeState } from '../lib/oauth/state';
+import { githubJson } from '../services/github/getAppAccessToken';
 import { InputPosition, ISetConfigMessage } from '../lib/types/giscus';
 import { cleanSessionParam, getOriginHost } from '../lib/utils';
-import { env, Theme } from '../lib/variables';
+import { Theme } from '../lib/variables';
 import { getAppAccessToken } from '../services/github/getAppAccessToken';
 import { getRepoConfig } from '../services/github/getConfig';
 import { availableLanguages } from '../lib/i18n';
@@ -30,11 +30,25 @@ export async function getServerSideProps({ query, res }: GetServerSidePropsConte
   const { origin, originHost } = getOriginHost((query.origin as string) || '');
   const backLink = (query.backLink as string) || origin;
 
-  const { encryption_password } = env;
-  const token = await decodeState(session, encryption_password)
-    .catch(() => getAppAccessToken(repo))
-    .catch(() => '');
-
+  const token = await getAppAccessToken(repo);
+  const metadata = await githubJson(`/repos/${repo}`, token);
+  const allowed = new Set([
+    'https://gitblog.app',
+    `https://${metadata.owner.login.toLowerCase()}.github.io`,
+  ]);
+  if (metadata.homepage) {
+    try {
+      const u = new URL(metadata.homepage);
+      if (u.protocol === 'https:') allowed.add(u.origin);
+    } catch {
+      /* Ignore invalid optional homepage. */
+    }
+  }
+  if (!allowed.has(originHost)) {
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+    return { notFound: true };
+  }
+  res.setHeader('Cache-Control', 'private, no-store');
   const repoConfig = await getRepoConfig(repo, token);
 
   // Opt into CORP. See: https://web.dev/articles/coop-coep
