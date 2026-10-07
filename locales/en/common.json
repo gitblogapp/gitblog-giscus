@@ -60,7 +60,6 @@
   "cancel": "Cancel",
   "signInWithGitHub": "Sign in with GitHub",
   "writeAReply": "Write a reply",
-
   "upvote": "Upvote",
   "youMustBeSignedInToUpvote": "You must be signed in to upvote.",
   "addReactions": "Add reactions",
@@ -77,7 +76,6 @@
   },
   "emoji": "emoji",
   "nothingToPreview": "Nothing to preview",
-
   "THUMBS_UP": "+1",
   "THUMBS_DOWN": "-1",
   "LAUGH": "Laugh",
@@ -86,7 +84,6 @@
   "HEART": "Love",
   "ROCKET": "Rocket",
   "EYES": "Eyes",
-
   "COLLABORATOR": "Collaborator",
   "CONTRIBUTOR": "Contributor",
   "FIRST_TIMER": "First-timer",
@@ -95,5 +92,11 @@
   "MEMBER": "Member",
   "NONE": "None",
   "OWNER": "Owner",
-  "APP": "App"
+  "APP": "App",
+  "signInToBookmark": "Sign in to bookmark",
+  "bookmarked": "Bookmarked",
+  "bookmarkPost": "Bookmark",
+  "myBookmarks": "My bookmarks",
+  "bookmarkPostUnavailable": "This post has not been indexed by GitBlog yet or is unavailable.",
+  "bookmarkFailed": "Could not confirm the bookmark. Please try again."
 }

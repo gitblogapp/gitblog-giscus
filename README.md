@@ -119,3 +119,9 @@ This README is available in:
 [![Powered by Vercel](public/powered-by-vercel.svg)][vercel]
 
 [vercel]: https://vercel.com/?utm_source=giscus&utm_campaign=oss
+
+## GitBlog 북마크
+
+GitBlog용 댓글 위젯은 댓글 위에 북마크 버튼을 제공합니다. 기존 댓글 인증을 `/v1/reader/bookmarks`에 전달하며, GitHub Discussions 생성·조회와 별개로 작동합니다. 데이터는 메인 `gitblog` Worker의 D1에 저장되고 `/library`에서 확인합니다. 댓글이 없는 글도 피드에 수집되면 저장할 수 있습니다.
+
+배포 순서: 메인 저장소의 D1 마이그레이션 → 메인 Worker → 이 Worker. 메인 Worker의 `/v1/reader/bookmarks`는 이 Worker로 프록시하면 안 됩니다. `PUBLIC_GISCUS_HOST=https://gitblog.app`, `PUBLIC_GISCUS_PROVIDER=gitblog`인 기존 템플릿에는 별도 재배포 없이 위젯 업데이트가 반영됩니다. 공식 giscus 호스트에는 적용되지 않습니다.

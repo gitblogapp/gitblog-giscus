@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import Giscus from '../components/Giscus';
+import BookmarkBar from './BookmarkBar';
 import { AuthContext, ConfigContext } from '../lib/context';
 import { emitData } from '../lib/messages';
 import { IErrorMessage, IResizeHeightMessage, ISignOutMessage } from '../lib/types/giscus';
@@ -82,6 +83,7 @@ export default function Widget({ origin, session }: IWidgetProps) {
         onSignOut: handleSignOut,
       }}
     >
+      <BookmarkBar key={`${repo}:${term}:${token}`} />
       <Giscus onDiscussionCreateRequest={handleDiscussionCreateRequest} onError={handleError} />
     </AuthContext.Provider>
   ) : null;

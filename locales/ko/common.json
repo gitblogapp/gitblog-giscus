@@ -60,7 +60,6 @@
   "cancel": "취소",
   "signInWithGitHub": "GitHub으로 로그인",
   "writeAReply": "답글 작성하기",
-
   "upvote": "추천",
   "youMustBeSignedInToUpvote": "추천하려면 로그인해야 합니다.",
   "addReactions": "반응 추가",
@@ -77,7 +76,6 @@
   },
   "emoji": "이모지",
   "nothingToPreview": "미리볼 내용이 없습니다.",
-
   "THUMBS_UP": "+1",
   "THUMBS_DOWN": "-1",
   "LAUGH": "웃음",
@@ -86,7 +84,6 @@
   "HEART": "하트",
   "ROCKET": "로켓",
   "EYES": "눈",
-
   "COLLABORATOR": "공저자",
   "CONTRIBUTOR": "기여자",
   "FIRST_TIMER": "첫 참여자",
@@ -95,5 +92,11 @@
   "MEMBER": "멤버",
   "NONE": "없음",
   "OWNER": "소유자",
-  "APP": "앱"
+  "APP": "앱",
+  "signInToBookmark": "로그인하고 북마크",
+  "bookmarked": "북마크됨",
+  "bookmarkPost": "북마크",
+  "myBookmarks": "내 북마크",
+  "bookmarkPostUnavailable": "GitBlog에 아직 수집되지 않았거나 사용할 수 없는 글입니다.",
+  "bookmarkFailed": "북마크 상태를 확인하지 못했습니다. 다시 시도해 주세요."
 }
