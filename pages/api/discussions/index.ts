@@ -23,17 +23,9 @@ async function get(req: NextApiRequest, res: NextApiResponse<IGiscussion | IErro
     params.first = 20;
   }
 
-  await getAppAccessToken(params.repo);
+  const appToken = await getAppAccessToken(params.repo);
   const userToken = req.headers.authorization ? sessionFrom(req, params.repo).token : undefined;
-  let token = userToken;
-  if (!token) {
-    try {
-      token = await getAppAccessToken(params.repo);
-    } catch (error) {
-      res.status(403).json({ error: error.message });
-      return;
-    }
-  }
+  const token = userToken || appToken;
 
   const response = await getDiscussion(params, token);
 

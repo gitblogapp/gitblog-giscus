@@ -12,9 +12,11 @@ function seal(value: unknown, secret: string) {
 import { readSession } from './gitblog-session';
 import handler from '../pages/api/gitblog/graphql';
 import tokenHandler from '../pages/api/oauth/token';
+import discussionsHandler from '../pages/api/discussions';
 import { ADD_DISCUSSION_COMMENT_QUERY } from '../services/github/addDiscussionComment';
 import { ADD_DISCUSSION_REPLY_QUERY } from '../services/github/addDiscussionReply';
-const mock = vi.hoisted(() => ({ app: vi.fn(), api: vi.fn() }));
+const mock = vi.hoisted(() => ({ app: vi.fn(), api: vi.fn(), discussion: vi.fn() }));
+vi.mock('../services/github/getDiscussion', () => ({ getDiscussion: mock.discussion }));
 vi.mock('../services/github/getAppAccessToken', () => ({
   getAppAccessToken: mock.app,
   githubJson: mock.api,
@@ -133,4 +135,40 @@ it('rejects cross-origin writes', async () => {
   await handler(req, res as unknown as NextApiResponse);
   expect(res.status).toHaveBeenCalledWith(403);
   expect(mock.app).not.toHaveBeenCalled();
+});
+
+it('reuses the validated App token for anonymous discussion reads', async () => {
+  mock.discussion.mockResolvedValue({
+    data: { viewer: {}, search: { discussionCount: 0, nodes: [] } },
+  });
+  const res = response();
+  await discussionsHandler(
+    {
+      method: 'GET',
+      headers: {},
+      query: { repo: 'owner/blog', term: 'post' },
+    } as unknown as NextApiRequest,
+    res as unknown as NextApiResponse,
+  );
+  expect(mock.app).toHaveBeenCalledTimes(1);
+  expect(mock.app).toHaveBeenCalledWith('owner/blog');
+  expect(mock.discussion).toHaveBeenCalledWith(
+    expect.objectContaining({ repo: 'owner/blog' }),
+    'installation_readonly',
+  );
+  expect(res.status).toHaveBeenCalledWith(404);
+});
+it('does not read discussions when repository access is revoked', async () => {
+  mock.app.mockRejectedValueOnce(new Error('Access revoked'));
+  const res = response();
+  await discussionsHandler(
+    {
+      method: 'GET',
+      headers: {},
+      query: { repo: 'owner/blog', term: 'post' },
+    } as unknown as NextApiRequest,
+    res as unknown as NextApiResponse,
+  );
+  expect(mock.discussion).not.toHaveBeenCalled();
+  expect(res.status).toHaveBeenCalledWith(403);
 });
