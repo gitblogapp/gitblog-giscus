@@ -4,11 +4,10 @@ import { ContextType, useContext, useEffect, useState } from 'react';
 import Widget from '../components/Widget';
 import { assertOrigin } from '../lib/config';
 import { ConfigContext, ThemeContext } from '../lib/context';
-import { githubJson } from '../services/github/getAppAccessToken';
 import { InputPosition, ISetConfigMessage } from '../lib/types/giscus';
 import { cleanSessionParam, getOriginHost } from '../lib/utils';
 import { Theme } from '../lib/variables';
-import { getAppAccessToken } from '../services/github/getAppAccessToken';
+import { getAppAccess } from '../services/github/getAppAccessToken';
 import { getRepoConfig } from '../services/github/getConfig';
 import { availableLanguages } from '../lib/i18n';
 import Router from 'next/router';
@@ -30,8 +29,7 @@ export async function getServerSideProps({ query, res }: GetServerSidePropsConte
   const { origin, originHost } = getOriginHost((query.origin as string) || '');
   const backLink = (query.backLink as string) || origin;
 
-  const token = await getAppAccessToken(repo);
-  const metadata = await githubJson(`/repos/${repo}`, token);
+  const { token, metadata } = await getAppAccess(repo);
   const allowed = new Set([
     'https://gitblog.app',
     `https://${metadata.owner.login.toLowerCase()}.github.io`,

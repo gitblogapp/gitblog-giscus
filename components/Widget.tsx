@@ -83,8 +83,8 @@ export default function Widget({ origin, session }: IWidgetProps) {
         onSignOut: handleSignOut,
       }}
     >
-      <BookmarkBar key={`${repo}:${term}:${token}`} />
       <Giscus onDiscussionCreateRequest={handleDiscussionCreateRequest} onError={handleError} />
+      <BookmarkBar key={`${repo}:${term}:${token}`} />
     </AuthContext.Provider>
   ) : null;
 }

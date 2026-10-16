@@ -1,0 +1,80 @@
+import type { GetServerSidePropsContext } from 'next';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+
+vi.mock('../components/Widget', () => ({ default: () => null }));
+vi.mock('../lib/jwt', () => ({ getJWT: () => 'app-jwt' }));
+
+const fetchMock = vi.fn();
+let render: typeof import('../pages/widget').getServerSideProps;
+let repoConfig: Record<string, unknown>;
+
+beforeEach(async () => {
+  vi.resetModules();
+  vi.stubEnv('GITHUB_APP_ID', '123');
+  repoConfig = {};
+  fetchMock.mockReset().mockImplementation(async (url: string) => {
+    if (url.endsWith('/installation'))
+      return Response.json({ id: 42, app_id: 123, permissions: { discussions: 'write' } });
+    if (url.endsWith('/access_tokens'))
+      return Response.json({
+        token: 'private-server-token',
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+    if (url.endsWith('/contents/giscus.json'))
+      return Response.json({ content: Buffer.from(JSON.stringify(repoConfig)).toString('base64') });
+    return Response.json({
+      private: false,
+      archived: false,
+      has_discussions: true,
+      full_name: 'owner/blog',
+      owner: { login: 'owner' },
+      homepage: 'https://blog.example',
+    });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  render = (await import('../pages/widget')).getServerSideProps;
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+
+function context(origin = 'https://blog.example/post') {
+  return {
+    query: { repo: 'owner/blog', origin, term: 'post' },
+    res: { setHeader: vi.fn() },
+  } as unknown as GetServerSidePropsContext;
+}
+
+it('renders with four cold / three warm GitHub calls and keeps the token server-side', async () => {
+  const first = await render(context());
+  expect(first).toHaveProperty('props.repo', 'owner/blog');
+  expect(JSON.stringify(first)).not.toContain('private-server-token');
+  expect(fetchMock).toHaveBeenCalledTimes(4);
+  fetchMock.mockClear();
+  const second = await render(context());
+  expect(second).toHaveProperty('props.repo', 'owner/blog');
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    'https://api.github.com/repos/owner/blog/installation',
+    'https://api.github.com/repos/owner/blog',
+    'https://api.github.com/repos/owner/blog/contents/giscus.json',
+  ]);
+});
+
+it('still rejects origins outside the repository homepage, Pages host and GitBlog', async () => {
+  const ctx = context('https://evil.example/post');
+  expect(await render(ctx)).toEqual({ notFound: true });
+  expect(ctx.res.setHeader).toHaveBeenCalledWith(
+    'Content-Security-Policy',
+    "frame-ancestors 'none'",
+  );
+});
+
+it('still enforces giscus.json origin restrictions with a warm token', async () => {
+  await render(context());
+  repoConfig = { origins: ['https://elsewhere.example'] };
+  const ctx = context();
+  expect(await render(ctx)).toHaveProperty('redirect');
+  expect(ctx.res.setHeader).toHaveBeenCalledWith('X-Frame-Options', 'DENY');
+});

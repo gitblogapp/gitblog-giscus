@@ -1,4 +1,15 @@
 import { getJWT } from '../../lib/jwt';
+import { TokenCache } from '../cache';
+
+interface RepositoryMetadata {
+  private: boolean;
+  archived: boolean;
+  has_discussions: boolean;
+  full_name: string;
+  owner: { login: string };
+  homepage?: string;
+}
+
 export async function githubJson(path: string, token: string, init: RequestInit = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
@@ -20,7 +31,7 @@ export function validRepo(repo: string) {
     throw new Error('Invalid repository.');
   return repo.toLowerCase();
 }
-export async function getAppAccessToken(repoWithOwner: string, writable = false): Promise<string> {
+export async function getAppAccess(repoWithOwner: string, writable = false) {
   const repo = validRepo(repoWithOwner);
   const jwt = getJWT();
   const installation = await githubJson(`/repos/${repo}/installation`, jwt);
@@ -30,20 +41,38 @@ export async function getAppAccessToken(repoWithOwner: string, writable = false)
     installation.permissions?.discussions !== 'write'
   )
     throw new Error('Install the gitblog App with Discussions access.');
-  const credential = await githubJson(`/app/installations/${installation.id}/access_tokens`, jwt, {
-    method: 'POST',
-    body: JSON.stringify({
-      repositories: [repo.split('/')[1]],
-      permissions: { discussions: writable ? 'write' : 'read', contents: 'read', metadata: 'read' },
-    }),
-  });
-  const metadata = await githubJson(`/repos/${repo}`, credential.token);
-  if (
-    metadata.private ||
-    metadata.archived ||
-    !metadata.has_discussions ||
-    metadata.full_name.toLowerCase() !== repo
-  )
-    throw new Error('A public, active Discussions repository is required.');
-  return credential.token;
+  // Repository-scoped read and write credentials must never share a cache entry.
+  const key = JSON.stringify([process.env.GITHUB_APP_ID, installation.id, repo, writable]);
+  const credential =
+    TokenCache.get(key) ||
+    (await githubJson(`/app/installations/${installation.id}/access_tokens`, jwt, {
+      method: 'POST',
+      body: JSON.stringify({
+        repositories: [repo.split('/')[1]],
+        permissions: {
+          discussions: writable ? 'write' : 'read',
+          contents: 'read',
+          metadata: 'read',
+        },
+      }),
+    }));
+  try {
+    const metadata: RepositoryMetadata = await githubJson(`/repos/${repo}`, credential.token);
+    if (
+      metadata.private ||
+      metadata.archived ||
+      !metadata.has_discussions ||
+      metadata.full_name.toLowerCase() !== repo
+    )
+      throw new Error('A public, active Discussions repository is required.');
+    TokenCache.set(key, credential);
+    return { token: credential.token as string, metadata };
+  } catch (error) {
+    TokenCache.delete(key);
+    throw error;
+  }
+}
+
+export async function getAppAccessToken(repoWithOwner: string, writable = false): Promise<string> {
+  return (await getAppAccess(repoWithOwner, writable)).token;
 }

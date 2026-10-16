@@ -66,7 +66,7 @@ export default function BookmarkBar() {
     }
   };
   return (
-    <div className="gsc-bookmark-bar color-text-primary mb-4 rounded-md border p-3">
+    <div className="gsc-bookmark-bar color-text-primary mt-4 rounded-md border p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {!token || error === 401 ? (
           <a
