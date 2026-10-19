@@ -7,12 +7,18 @@ import { ConfigContext, ThemeContext } from '../lib/context';
 import { InputPosition, ISetConfigMessage } from '../lib/types/giscus';
 import { cleanSessionParam, getOriginHost } from '../lib/utils';
 import { Theme } from '../lib/variables';
-import { getAppAccess } from '../services/github/getAppAccessToken';
+import {
+  CommentSetupError,
+  getAppAccess,
+  getPublicRepository,
+} from '../services/github/getAppAccessToken';
+import type { CommentSetupIssue } from '../services/github/getAppAccessToken';
+import SetupNotice from '../components/SetupNotice';
 import { getRepoConfig } from '../services/github/getConfig';
 import { availableLanguages } from '../lib/i18n';
 import Router from 'next/router';
 
-export async function getServerSideProps({ query, res }: GetServerSidePropsContext) {
+export async function getServerSideProps({ query, res, locale }: GetServerSidePropsContext) {
   const session = (query.session as string) || '';
   const repo = (query.repo as string) || '';
   const term = cleanSessionParam((query.term as string) || '');
@@ -29,7 +35,23 @@ export async function getServerSideProps({ query, res }: GetServerSidePropsConte
   const { origin, originHost } = getOriginHost((query.origin as string) || '');
   const backLink = (query.backLink as string) || origin;
 
-  const { token, metadata } = await getAppAccess(repo);
+  res.setHeader('Cache-Control', 'private, no-store');
+  let token: string | undefined;
+  let metadata: Awaited<ReturnType<typeof getPublicRepository>>;
+  let setupIssue: CommentSetupIssue | null = null;
+  try {
+    ({ token, metadata } = await getAppAccess(repo));
+  } catch (error) {
+    if (!(error instanceof CommentSetupError)) throw error;
+    // Render only public setup guidance. Never issue a broader token or skip origin checks.
+    try {
+      metadata = await getPublicRepository(repo);
+    } catch {
+      res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+      return { notFound: true };
+    }
+    setupIssue = error.issue;
+  }
   const allowed = new Set([
     'https://gitblog.app',
     `https://${metadata.owner.login.toLowerCase()}.github.io`,
@@ -71,10 +93,13 @@ export async function getServerSideProps({ query, res }: GetServerSidePropsConte
     res.setHeader('Content-Security-Policy', `frame-ancestors 'self' ${originsStr};`);
   }
 
+  if (setupIssue) res.statusCode = 403;
   const defaultCommentOrder = repoConfig.defaultCommentOrder || 'oldest';
 
   return {
     props: {
+      setupIssue,
+      language: locale || 'en',
       origin,
       session,
       repo,
@@ -97,6 +122,8 @@ export async function getServerSideProps({ query, res }: GetServerSidePropsConte
 }
 
 export default function WidgetPage({
+  setupIssue,
+  language,
   origin,
   session,
   repo,
@@ -164,6 +191,11 @@ export default function WidgetPage({
   }, [originHost, setTheme]);
 
   useEffect(() => setTheme(theme), [setTheme, theme]);
+
+  if (setupIssue)
+    return (
+      <SetupNotice issue={setupIssue} repo={repo} language={language} originHost={originHost} />
+    );
 
   return (
     <>

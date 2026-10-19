@@ -154,3 +154,17 @@ it('bounds the token cache and evicts least recently used credentials', async ()
   expect(TokenCache.get('0')?.token).toBe('0');
   expect(TokenCache.get('new')?.token).toBe('new');
 });
+
+it('classifies a missing installation without issuing a token', async () => {
+  fetchMock.mockResolvedValueOnce(Response.json({ message: 'Not Found' }, { status: 404 }));
+  await expect(access.getAppAccess('owner/blog')).rejects.toMatchObject({ issue: 'installation' });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it.each([401, 429, 500])(
+  'does not misreport GitHub %s as a missing installation',
+  async (status) => {
+    fetchMock.mockResolvedValueOnce(Response.json({}, { status }));
+    await expect(access.getAppAccess('owner/blog')).rejects.toMatchObject({ status });
+  },
+);

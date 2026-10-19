@@ -1,7 +1,7 @@
 import { getJWT } from '../../lib/jwt';
 import { TokenCache } from '../cache';
 
-interface RepositoryMetadata {
+export interface RepositoryMetadata {
   private: boolean;
   archived: boolean;
   has_discussions: boolean;
@@ -10,20 +10,44 @@ interface RepositoryMetadata {
   homepage?: string;
 }
 
+export class GitHubRequestError extends Error {
+  constructor(public status: number) {
+    super(`GitHub request failed (${status}).`);
+  }
+}
+
+export type CommentSetupIssue = 'installation' | 'permissions' | 'repository';
+export class CommentSetupError extends Error {
+  constructor(
+    public issue: CommentSetupIssue,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export async function getPublicRepository(repoWithOwner: string): Promise<RepositoryMetadata> {
+  const repo = validRepo(repoWithOwner);
+  const metadata = await githubJson(`/repos/${repo}`, '');
+  if (metadata.private || metadata.full_name?.toLowerCase() !== repo)
+    throw new Error('A public repository is required.');
+  return metadata;
+}
+
 export async function githubJson(path: string, token: string, init: RequestInit = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
     redirect: 'manual',
     signal: AbortSignal.timeout(20000),
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       Accept: 'application/vnd.github+json',
       'User-Agent': 'gitblog',
       'Content-Type': 'application/json',
       ...init.headers,
     },
   });
-  if (!response.ok) throw new Error(`GitHub request failed (${response.status}).`);
+  if (!response.ok) throw new GitHubRequestError(response.status);
   return response.json();
 }
 export function validRepo(repo: string) {
@@ -34,13 +58,23 @@ export function validRepo(repo: string) {
 export async function getAppAccess(repoWithOwner: string, writable = false) {
   const repo = validRepo(repoWithOwner);
   const jwt = getJWT();
-  const installation = await githubJson(`/repos/${repo}/installation`, jwt);
+  let installation;
+  try {
+    installation = await githubJson(`/repos/${repo}/installation`, jwt);
+  } catch (error) {
+    if (error instanceof GitHubRequestError && error.status === 404)
+      throw new CommentSetupError(
+        'installation',
+        'Add this repository to the gitblog App installation.',
+      );
+    throw error;
+  }
   if (
     installation.suspended_at ||
     String(installation.app_id) !== process.env.GITHUB_APP_ID ||
     installation.permissions?.discussions !== 'write'
   )
-    throw new Error('Install the gitblog App with Discussions access.');
+    throw new CommentSetupError('permissions', 'Install the gitblog App with Discussions access.');
   // Repository-scoped read and write credentials must never share a cache entry.
   const key = JSON.stringify([process.env.GITHUB_APP_ID, installation.id, repo, writable]);
   const credential =
@@ -64,7 +98,10 @@ export async function getAppAccess(repoWithOwner: string, writable = false) {
       !metadata.has_discussions ||
       metadata.full_name.toLowerCase() !== repo
     )
-      throw new Error('A public, active Discussions repository is required.');
+      throw new CommentSetupError(
+        'repository',
+        'A public, active Discussions repository is required.',
+      );
     TokenCache.set(key, credential);
     return { token: credential.token as string, metadata };
   } catch (error) {
