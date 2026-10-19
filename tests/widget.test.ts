@@ -107,7 +107,8 @@ it('renders actionable setup guidance instead of a 500 when the App lacks reposi
   const publicCall = fetchMock.mock.calls.find(
     ([url]) => url === 'https://api.github.com/repos/owner/blog',
   );
-  expect(publicCall?.[1].headers.Authorization).toBeUndefined();
+  expect(publicCall).toBeUndefined();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 it('does not weaken origin restrictions for setup guidance', async () => {
@@ -128,4 +129,12 @@ it('recovers after the owner grants the App access without caching the failed se
   expect(await render(context())).toHaveProperty('props.setupIssue', 'installation');
   installationStatus = 200;
   expect(await render(context())).toHaveProperty('props.setupIssue', null);
+});
+
+it('can show a data-free Pages setup notice when anonymous GitHub reads are unavailable', async () => {
+  installationStatus = 404;
+  publicStatus = 403;
+  const ctx = context('https://owner.github.io/blog/post');
+  expect(await render(ctx)).toHaveProperty('props.setupIssue', 'installation');
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });

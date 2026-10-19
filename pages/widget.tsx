@@ -37,26 +37,31 @@ export async function getServerSideProps({ query, res, locale }: GetServerSidePr
 
   res.setHeader('Cache-Control', 'private, no-store');
   let token: string | undefined;
-  let metadata: Awaited<ReturnType<typeof getPublicRepository>>;
+  let metadata: Awaited<ReturnType<typeof getPublicRepository>> | undefined;
   let setupIssue: CommentSetupIssue | null = null;
   try {
     ({ token, metadata } = await getAppAccess(repo));
   } catch (error) {
     if (!(error instanceof CommentSetupError)) throw error;
     // Render only public setup guidance. Never issue a broader token or skip origin checks.
-    try {
-      metadata = await getPublicRepository(repo);
-    } catch {
-      res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
-      return { notFound: true };
+    const pagesOrigin = `https://${repo.split('/')[0].toLowerCase()}.github.io`;
+    // A data-free notice can be shown on the owner's Pages host without an anonymous
+    // GitHub lookup (which can be rate-limited). Custom domains still need verification.
+    if (originHost !== pagesOrigin && originHost !== 'https://gitblog.app') {
+      try {
+        metadata = await getPublicRepository(repo);
+      } catch {
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+        return { notFound: true };
+      }
     }
     setupIssue = error.issue;
   }
   const allowed = new Set([
     'https://gitblog.app',
-    `https://${metadata.owner.login.toLowerCase()}.github.io`,
+    `https://${(metadata?.owner.login || repo.split('/')[0]).toLowerCase()}.github.io`,
   ]);
-  if (metadata.homepage) {
+  if (metadata?.homepage) {
     try {
       const u = new URL(metadata.homepage);
       if (u.protocol === 'https:') allowed.add(u.origin);
@@ -69,7 +74,7 @@ export async function getServerSideProps({ query, res, locale }: GetServerSidePr
     return { notFound: true };
   }
   res.setHeader('Cache-Control', 'private, no-store');
-  const repoConfig = await getRepoConfig(repo, token);
+  const repoConfig = setupIssue && !metadata ? {} : await getRepoConfig(repo, token);
 
   // Opt into CORP. See: https://web.dev/articles/coop-coep
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
