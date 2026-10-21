@@ -55,7 +55,7 @@ export function validRepo(repo: string) {
     throw new Error('Invalid repository.');
   return repo.toLowerCase();
 }
-export async function getAppAccess(repoWithOwner: string, writable = false) {
+export async function getAppAccess(repoWithOwner: string, writable = false, pagesRead = false) {
   const repo = validRepo(repoWithOwner);
   const jwt = getJWT();
   let installation;
@@ -76,7 +76,14 @@ export async function getAppAccess(repoWithOwner: string, writable = false) {
   )
     throw new CommentSetupError('permissions', 'Install the gitblog App with Discussions access.');
   // Repository-scoped read and write credentials must never share a cache entry.
-  const key = JSON.stringify([process.env.GITHUB_APP_ID, installation.id, repo, writable]);
+  const canReadPages = pagesRead && ['read', 'write'].includes(installation.permissions?.pages);
+  const key = JSON.stringify([
+    process.env.GITHUB_APP_ID,
+    installation.id,
+    repo,
+    writable,
+    canReadPages,
+  ]);
   const credential =
     TokenCache.get(key) ||
     (await githubJson(`/app/installations/${installation.id}/access_tokens`, jwt, {
@@ -87,6 +94,7 @@ export async function getAppAccess(repoWithOwner: string, writable = false) {
           discussions: writable ? 'write' : 'read',
           contents: 'read',
           metadata: 'read',
+          ...(canReadPages ? { pages: 'read' } : {}),
         },
       }),
     }));

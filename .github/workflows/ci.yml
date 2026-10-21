@@ -18,4 +18,5 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build:worker
+      - run: npm run test:runtime
       - run: npm run check

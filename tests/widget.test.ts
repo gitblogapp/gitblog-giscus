@@ -138,3 +138,71 @@ it('can show a data-free Pages setup notice when anonymous GitHub reads are unav
   expect(await render(ctx)).toHaveProperty('props.setupIssue', 'installation');
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+it.each(['one.gitblog.page', 'blog.personal.example'])(
+  'allows the verified Pages domain %s with empty Website',
+  async (hostname) => {
+    const previous = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, ...args: unknown[]) => {
+      if (url.endsWith('/pages'))
+        return Response.json({
+          cname: hostname,
+          html_url: `https://${hostname}/`,
+          protected_domain_state: 'verified',
+          https_enforced: true,
+          https_certificate: { state: 'approved' },
+        });
+      const result = await previous(url, ...args);
+      if (url.endsWith('/repos/owner/blog'))
+        return Response.json({ ...(await result.json()), homepage: null });
+      return result;
+    });
+    const ctx = context(`https://${hostname}/blog/post`);
+    expect(await render(ctx)).toHaveProperty('props.repo', 'owner/blog');
+    expect(ctx.res.setHeader).toHaveBeenCalledWith(
+      'Content-Security-Policy',
+      `frame-ancestors 'self' https://${hostname};`,
+    );
+    for (const origin of [
+      'https://two.gitblog.page',
+      `https://${hostname}.evil.example`,
+      `http://${hostname}`,
+      `https://${hostname}:444`,
+    ]) {
+      expect(await render(context(origin))).toEqual({ notFound: true });
+    }
+    repoConfig = { origins: ['https://elsewhere.example'] };
+    expect(await render(ctx)).toHaveProperty('redirect');
+  },
+);
+
+it.each([
+  { cname: 'other.gitblog.page' },
+  { protected_domain_state: 'unverified' },
+  { https_enforced: false },
+  { https_certificate: { state: 'pending' } },
+  { html_url: 'https://other.gitblog.page/' },
+])('rejects a stale or unready Pages assignment: %j', async (change) => {
+  const previous = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (url: string, ...args: unknown[]) =>
+    url.endsWith('/pages')
+      ? Response.json({
+          cname: 'one.gitblog.page',
+          html_url: 'https://one.gitblog.page/',
+          protected_domain_state: 'verified',
+          https_enforced: true,
+          https_certificate: { state: 'approved' },
+          ...change,
+        })
+      : previous(url, ...args),
+  );
+  expect(await render(context('https://one.gitblog.page'))).toEqual({ notFound: true });
+});
+
+it('fails closed if Pages lookup is unavailable', async () => {
+  const previous = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (url: string, ...args: unknown[]) =>
+    url.endsWith('/pages') ? Response.json({}, { status: 503 }) : previous(url, ...args),
+  );
+  expect(await render(context('https://one.gitblog.page'))).toEqual({ notFound: true });
+});

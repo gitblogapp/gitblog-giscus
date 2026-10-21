@@ -13,7 +13,7 @@
     "cthemes": "postcss styles/themes/*.css --dir public/themes --config styles/themes",
     "mscript": "google-closure-compiler < public/client.js --js_output_file public/client.js",
     "dev": "next dev",
-    "build": "npm run cscript && npm run cthemes && next build",
+    "build": "npm run cscript && npm run cthemes && next build --webpack",
     "start": "next start",
     "lint": "stylelint styles/**/*.css && eslint . --cache --max-warnings 0",
     "lint:fix": "stylelint --fix styles/**/*.css && eslint --fix . --cache --max-warnings 0",
@@ -23,14 +23,15 @@
     "deploy": "npm run build:worker && opennextjs-cloudflare deploy",
     "preview:worker": "npm run build:worker && opennextjs-cloudflare preview",
     "check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:runtime": "node scripts/check-runtime.mjs"
   },
   "dependencies": {
     "@primer/octicons-react": "^19.14.0",
     "dompurify": "^3.2.3",
     "lit-html": "^3.2.1",
     "mathjax": "3.2.0",
-    "next": "15.5.27",
+    "next": "16.4.2",
     "next-translate": "^2.6.2",
     "next-translate-plugin": "^2.6.2",
     "react": "18.3.1",
@@ -38,7 +39,7 @@
     "swr": "^2.3.0"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "1.20.8",
+    "@opennextjs/cloudflare": "1.20.12",
     "@types/dompurify": "^3.2.0",
     "@types/node": "^22.10.2",
     "@types/react": "^18.0.9",

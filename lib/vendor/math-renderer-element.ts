@@ -4,6 +4,7 @@
  */
 
 import type Dompurify from 'dompurify';
+import type { UponSanitizeAttributeHookEvent } from 'dompurify';
 import type MathJaxConfig from 'mathjax/es5/tex-chtml-full';
 import { html, render } from 'lit-html';
 import { hasStorageAccess } from '../utils';
@@ -251,7 +252,7 @@ async function configureMathJax({ staticURL }: { staticURL: string }) {
 }
 
 // Workaround to force DOMPurify to not remove `columnalign` attributes from MathML elements
-function allowMathMlAttributes(el: Element, data: Dompurify.UponSanitizeAttributeHookEvent): void {
+function allowMathMlAttributes(el: Element, data: UponSanitizeAttributeHookEvent): void {
   const allowedTags = ['mtable'];
   const allowedAttributes = ['columnalign'];
 
@@ -261,7 +262,7 @@ function allowMathMlAttributes(el: Element, data: Dompurify.UponSanitizeAttribut
   }
 }
 
-function sanitizeClass(_: Element, data: Dompurify.UponSanitizeAttributeHookEvent): void {
+function sanitizeClass(_: Element, data: UponSanitizeAttributeHookEvent): void {
   // only look at class attributes
   if (data.attrName !== 'class') {
     return;

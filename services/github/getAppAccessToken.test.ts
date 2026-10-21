@@ -168,3 +168,16 @@ it.each([401, 429, 500])(
     await expect(access.getAppAccess('owner/blog')).rejects.toMatchObject({ status });
   },
 );
+
+it('isolates Pages-read credentials from ordinary comment credentials', async () => {
+  installation.permissions = { discussions: 'write', pages: 'write' };
+  expect((await access.getAppAccess('owner/blog')).token).toBe('token-1');
+  expect((await access.getAppAccess('owner/blog', false, true)).token).toBe('token-2');
+  const init = fetchMock.mock.calls.filter(([url]) => url.endsWith('/access_tokens'))[1][1];
+  expect(JSON.parse(init.body)).toEqual({
+    repositories: ['blog'],
+    permissions: { discussions: 'read', contents: 'read', metadata: 'read', pages: 'read' },
+  });
+  expect((await access.getAppAccess('owner/blog')).token).toBe('token-1');
+  expect((await access.getAppAccess('owner/blog', false, true)).token).toBe('token-2');
+});

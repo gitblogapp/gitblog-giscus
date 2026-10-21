@@ -11,7 +11,9 @@ import {
   CommentSetupError,
   getAppAccess,
   getPublicRepository,
+  githubJson,
 } from '../services/github/getAppAccessToken';
+import { verifiedPagesOrigin } from '../lib/pages-origin';
 import type { CommentSetupIssue } from '../services/github/getAppAccessToken';
 import SetupNotice from '../components/SetupNotice';
 import { getRepoConfig } from '../services/github/getConfig';
@@ -40,7 +42,7 @@ export async function getServerSideProps({ query, res, locale }: GetServerSidePr
   let metadata: Awaited<ReturnType<typeof getPublicRepository>> | undefined;
   let setupIssue: CommentSetupIssue | null = null;
   try {
-    ({ token, metadata } = await getAppAccess(repo));
+    ({ token, metadata } = await getAppAccess(repo, false, true));
   } catch (error) {
     if (!(error instanceof CommentSetupError)) throw error;
     // Render only public setup guidance. Never issue a broader token or skip origin checks.
@@ -67,6 +69,14 @@ export async function getServerSideProps({ query, res, locale }: GetServerSidePr
       if (u.protocol === 'https:') allowed.add(u.origin);
     } catch {
       /* Ignore invalid optional homepage. */
+    }
+  }
+  if (!allowed.has(originHost) && token && !setupIssue) {
+    try {
+      const pagesOrigin = verifiedPagesOrigin(await githubJson(`/repos/${repo}/pages`, token));
+      if (pagesOrigin) allowed.add(pagesOrigin);
+    } catch {
+      // Missing Pages access or an unavailable lookup must not allow embedding.
     }
   }
   if (!allowed.has(originHost)) {
