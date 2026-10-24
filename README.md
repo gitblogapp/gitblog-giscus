@@ -1,127 +1,234 @@
-> This is the gitblog fork. See [GITBLOG.md](GITBLOG.md) for Cloudflare deployment and the shared GitHub App integration. The original widget UI and upstream attribution are preserved.
+# GitBlog Giscus
 
-# [giscus][giscus]
+The GitBlog comment embed, built on [giscus](https://github.com/giscus/giscus) and powered by GitHub Discussions. Visitors can comment, react, and save indexed articles to their GitBlog bookmarks without leaving the blog.
 
-A comments system powered by [GitHub Discussions][discussions]. Let visitors leave comments and reactions on your website via GitHub! Heavily inspired by [utterances][utterances].
+This fork retains the upstream Next.js/React widget, themes, translations, and MIT attribution. It adds GitBlog authentication, repository-scoped server operations, bookmarks, and a Cloudflare Workers deployment through OpenNext.
 
-- [Open source][repo]. 🌏
-- No tracking, no ads, always free. 📡 🚫
-- No database needed. All data is stored in GitHub Discussions. :octocat:
-- Supports [custom themes][creating-custom-themes]! 🌗
-- Supports [multiple languages][multiple-languages]. 🌐
-- [Extensively configurable][advanced-usage]. 🔧
-- Automatically fetches new comments and edits from GitHub. 🔃
-- [Can be self-hosted][self-hosting]! 🤳
+**Blog authors use the hosted embed at `https://gitblog.app/client.js`.** Deploying this repository is for GitBlog service maintainers: the fork depends on the main GitBlog application's login and bookmark endpoints.
 
-> **Note**
-> giscus is still under active development. GitHub is also still actively developing Discussions and its API. Thus, some features of giscus may break or change over time.
+## Features
 
-## How it works
+- Comments and reactions stored in the blog repository's GitHub Discussions.
+- Existing giscus themes, languages, Markdown rendering, and moderation through GitHub.
+- GitBlog login with a separate, expiring comment credential scoped to one repository.
+- A bookmark button above the comments for articles indexed by GitBlog.
+- Repository-specific checks for the parent blog origin, including supported custom domains.
+- Independent Worker deployment behind GitBlog's `GISCUS` Service Binding.
 
-When giscus loads, the [GitHub Discussions search API][search-api] is used to find the Discussion associated with the page based on a chosen mapping (URL, `pathname`, `<title>`, etc.). If a matching discussion cannot be found, the giscus bot will automatically create a discussion the first time someone leaves a comment or reaction.
+## Using the embed
 
-To comment, visitors must authorize the [giscus app][giscus-app] to [post on their behalf][authorization] using the GitHub OAuth flow. Alternatively, visitors can comment on the GitHub Discussion directly. You can moderate the comments on GitHub.
+### With the GitBlog Svelte template
 
-[giscus]: https://giscus.app
-[discussions]: https://docs.github.com/en/discussions
-[utterances]: https://github.com/utterance/utterances
-[repo]: https://github.com/giscus/giscus
-[advanced-usage]: https://github.com/giscus/giscus/blob/main/ADVANCED-USAGE.md
-[creating-custom-themes]: https://github.com/giscus/giscus/blob/main/ADVANCED-USAGE.md#data-theme
-[multiple-languages]: https://github.com/giscus/giscus/blob/main/CONTRIBUTING.md#adding-localizations
-[self-hosting]: https://github.com/giscus/giscus/blob/main/SELF-HOSTING.md
-[search-api]: https://docs.github.com/en/graphql/guides/using-the-graphql-api-for-discussions#search
-[giscus-app]: https://github.com/apps/giscus
-[authorization]: https://docs.github.com/en/developers/apps/identifying-and-authorizing-users-for-github-apps
+The [Svelte GitBlog Template](https://github.com/gitblogapp/svelte-gitblog-template) includes the comment integration.
 
-<!-- configuration -->
+1. Connect your public blog repository to GitBlog and install the [GitBlog GitHub App](https://github.com/apps/gitblog-app/installations/new) for that repository.
+2. Enable GitHub Discussions and configure the comment connection in GitBlog Studio. Use the repository and discussion category IDs supplied by that setup.
+3. Enable comments in the blog settings and deploy the blog.
 
-If you're using giscus, consider [starring 🌟 giscus on GitHub][repo] and adding the [`giscus`][giscus-topic] topic [to your repository][topic-howto]! 🎉
+For manual configuration, the template reads these values from `.env.production`:
 
-## Advanced usage
+```dotenv
+PUBLIC_GISCUS_ENABLED=true
+PUBLIC_GISCUS_PROVIDER=gitblog
+PUBLIC_GISCUS_HOST=https://gitblog.app
+PUBLIC_GISCUS_REPO=owner/repository
+PUBLIC_GISCUS_REPO_ID=YOUR_REPOSITORY_NODE_ID
+PUBLIC_GISCUS_CATEGORY=Announcements
+PUBLIC_GISCUS_CATEGORY_ID=YOUR_CATEGORY_NODE_ID
+```
 
-You can add additional configurations (e.g. allowing specific origins) by following the [advanced usage guide][advanced-usage].
+Replace the placeholders with the actual repository and category values. Node IDs are GitHub GraphQL IDs, not numeric repository IDs. The repository name, node IDs, category, and host are public configuration; never add API tokens or App private keys to these variables.
 
-To use giscus with React, Vue, or Svelte, check out the [giscus component library][giscus-component].
+Existing templates already using the GitBlog host receive hosted widget updates without a blog rebuild. Changes to the template's own configuration still require deployment. The official `giscus.app` service does not include GitBlog's bookmark integration.
 
-## Migrating
+### With another template or framework
 
-If you've previously used other systems that utilize GitHub Issues (e.g. [utterances][utterances], [gitalk][gitalk]), you can [convert the existing issues into discussions][convert]. After the conversion, just make sure that the mapping between the discussion titles and the pages are correct, then giscus will automatically use the discussions.
+Place this script where the comments should appear. If the page already has a `.giscus` container, the client mounts there instead.
 
-## Sites using giscus
+```html
+<script
+  src="https://gitblog.app/client.js"
+  data-repo="owner/repository"
+  data-repo-id="YOUR_REPOSITORY_NODE_ID"
+  data-category="Announcements"
+  data-category-id="YOUR_CATEGORY_NODE_ID"
+  data-mapping="specific"
+  data-term="YOUR_EXISTING_DISCUSSION_TERM"
+  data-strict="0"
+  data-reactions-enabled="1"
+  data-emit-metadata="0"
+  data-input-position="top"
+  data-theme="preferred_color_scheme"
+  data-lang="en"
+  data-loading="lazy"
+  crossorigin="anonymous"
+  async
+></script>
+```
 
-- [laymonage.com][laymonage-website]
-- [os.phil-opp.com][os-phil-opp]
-- [Stats and R][statsandr]
-- [Tech Debt Burndown Podcast][techdebtburndown]
-- [**and many more!**][giscus-topic]
+Use a public repository with Discussions enabled and the GitBlog App installed. Replace all placeholders. For an existing GitBlog blog, preserve the discussion term generated by its template so the widget finds the existing conversation and GitBlog can associate bookmarks with the indexed post.
 
-## Contributing
+A new integration may choose another stable mapping, but changing the mapping later can disconnect a page from its existing discussion. This script does not register a blog or index its posts in GitBlog.
 
-See [CONTRIBUTING.md][contributing]
+| Attribute                           | Purpose                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `data-repo`, `data-repo-id`         | Public repository name (`owner/repository`) and its GraphQL node ID.                                   |
+| `data-category`, `data-category-id` | Discussion category name and its GraphQL node ID.                                                      |
+| `data-mapping`                      | Discussion lookup strategy: `specific`, `pathname`, `url`, `title`, `og:title`, or `number`.           |
+| `data-term`                         | Stable lookup text for `specific`, or the discussion number for `number`.                              |
+| `data-strict`                       | Use `1` for strict matching or `0` for non-strict matching. Preserve existing settings when migrating. |
+| `data-reactions-enabled`            | `1` enables discussion reactions; `0` disables them.                                                   |
+| `data-input-position`               | `top` or `bottom`.                                                                                     |
+| `data-theme`                        | For example, `light`, `dark_dimmed`, or `preferred_color_scheme`.                                      |
+| `data-lang`                         | Widget language, such as `en`, `ko`, or `ja`.                                                          |
+| `data-loading`                      | `lazy` defers iframe loading until it approaches the viewport.                                         |
 
-[giscus-component]: https://github.com/giscus/giscus-component
-[repo]: https://github.com/giscus/giscus
-[giscus-topic]: https://github.com/topics/giscus
-[topic-howto]: https://docs.github.com/en/github/administering-a-repository/classifying-your-repository-with-topics
-[advanced-usage]: https://github.com/giscus/giscus/blob/main/ADVANCED-USAGE.md
-[utterances]: https://github.com/utterance/utterances
-[gitalk]: https://github.com/gitalk/gitalk
-[convert]: https://docs.github.com/en/discussions/managing-discussions-for-your-community/moderating-discussions#converting-an-issue-to-a-discussion
-[laymonage-website]: https://laymonage.com/posts/giscus
-[os-phil-opp]: https://os.phil-opp.com
-[statsandr]: https://statsandr.com
-[techdebtburndown]: https://techdebtburndown.com
-[contributing]: https://github.com/giscus/giscus/blob/main/CONTRIBUTING.md
+See [ADVANCED-USAGE.md](ADVANCED-USAGE.md) for inherited giscus options and [lib/i18n.tsx](lib/i18n.tsx) for supported languages. Upstream documentation describes the original service; use this README and [GITBLOG.md](GITBLOG.md) for GitBlog-specific authentication and deployment.
 
-<!-- end -->
+### Theme updates and client-side navigation
 
----
+After the iframe has loaded, send configuration changes to its exact origin:
 
-This README is available in:
+```js
+const frame = document.querySelector('iframe.giscus-frame');
+frame?.contentWindow?.postMessage(
+  { giscus: { setConfig: { theme: 'dark_dimmed' } } },
+  'https://gitblog.app',
+);
+```
 
-- [&lrm;العربية](README.ar.md)
-- [Беларуская](README.be.md)
-- [български](README.bg.md)
-- [Català](README.ca.md)
-- [Čeština](README.cs.md)
-- [Dansk](README.da.md)
-- [Deutsch](README.de.md)
-- [English](README.md)
-- [Esperanto](README.eo.md)
-- [Español](README.es.md)
-- [Euskera](README.eu.md)
-- [فارسی](README.fa.md)
-- [Français](README.fr.md)
-- [Ελληνικά](README.gr.md)
-- [Srpsko-Hrvatski (BCMS)](README.hbs.md)
-- [עברית](README.he.md)
-- [Magyar](README.hu.md)
-- [Indonesia](README.id.md)
-- [Italiano](README.it.md)
-- [日本語](README.ja.md)
-- [ភាសាខ្មែរ](README.kh.md)
-- [한국어](README.ko.md)
-- [Nederlands](README.nl.md)
-- [Polski](README.pl.md)
-- [Português](README.pt.md)
-- [Română](README.ro.md)
-- [Русский](README.ru.md)
-- [ภาษาไทย](README.th.md)
-- [Türkçe](README.tr.md)
-- [Tiếng Việt](README.vi.md)
-- [Українська](README.uk.md)
-- [O'zbek](README.uz.md)
-- [简体中文](README.zh-CN.md)
-- [繁體中文](README.zh-TW.md)
-- [香港繁體](README.zh-HK.md)
+For a single-page app, mount the script in the browser, keep one comment instance per page, and update its mapping when the displayed article changes. With `specific` mapping, use `setConfig: { term: nextDiscussionTerm }`. Preserve the same repository and category; remount the integration when switching repositories. Remove the old component's DOM and any listeners your adapter adds on unmount. The hosted `client.js` is an auto-mount script, not a `mount()/destroy()` SDK.
 
-[![Powered by Vercel](public/powered-by-vercel.svg)][vercel]
+### Custom domains
 
-[vercel]: https://vercel.com/?utm_source=giscus&utm_campaign=oss
+The parent blog must pass the repository-specific origin checks. The widget accepts GitBlog itself, the repository owner's `github.io` origin, and an HTTPS origin explicitly configured in the repository's Website field. It can also validate that repository's GitHub Pages custom domain when the App has Pages-read access and Pages reports a verified domain, approved certificate, and enforced HTTPS.
 
-## GitBlog 북마크
+If a repository contains `giscus.json` with `origins` or `originsRegex`, those additional restrictions must also allow the blog origin. A configuration such as the following restricts embedding to one origin; it does not replace the server's repository-origin verification:
 
-GitBlog용 댓글 위젯은 댓글 위에 북마크 버튼을 제공합니다. 기존 댓글 인증을 `/v1/reader/bookmarks`에 전달하며, GitHub Discussions 생성·조회와 별개로 작동합니다. 데이터는 메인 `gitblog` Worker의 D1에 저장되고 `/library`에서 확인합니다. 댓글이 없는 글도 피드에 수집되면 저장할 수 있습니다.
+```json
+{
+  "origins": ["https://blog.example.com"]
+}
+```
 
-배포 순서: 메인 저장소의 D1 마이그레이션 → 메인 Worker → 이 Worker. 메인 Worker의 `/v1/reader/bookmarks`는 이 Worker로 프록시하면 안 됩니다. `PUBLIC_GISCUS_HOST=https://gitblog.app`, `PUBLIC_GISCUS_PROVIDER=gitblog`인 기존 템플릿에는 별도 재배포 없이 위젯 업데이트가 반영됩니다. 공식 giscus 호스트에는 적용되지 않습니다.
+GitBlog-managed domain connection flows update existing origin restrictions as part of the connection process. When configuring a domain outside GitBlog, verify the repository Website/Pages settings and any `giscus.json` allowlist. There is no blanket trust for every `*.gitblog.page` host.
+
+If your blog uses a Content Security Policy, allow `https://gitblog.app` for the widget's `script-src`, `frame-src`, and stylesheet loading in `style-src`.
+
+### Bookmarks
+
+The bookmark button uses the comment credential to call GitBlog's `/v1/reader/bookmarks` endpoint. Bookmarks are stored in the main GitBlog database and can be viewed in the reader's library. They are separate from GitHub Discussions: an indexed post can be bookmarked even before anyone comments.
+
+If the current repository and discussion term cannot be matched to an indexed article, bookmarking is unavailable. Comments can still work independently of indexing.
+
+## Architecture
+
+```text
+Blog page
+  |-- https://gitblog.app/client.js --> comment iframe
+  |
+  v
+Main GitBlog Worker
+  |-- GISCUS Service Binding --> this Worker (Next.js + React + OpenNext)
+  |                              |-- renders the widget and themes
+  |                              `-- validates operations --> GitHub Discussions
+  |
+  |-- /giscus/login --> GitBlog OAuth --> repository-bound comment ticket
+  `-- /v1/reader/bookmarks --> main GitBlog database
+```
+
+| Component        | Responsibilities                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| This repository  | Widget UI, themes, translations, comment/reaction operations, and server-side GitHub access validation. |
+| Main GitBlog app | OAuth, comment ticket issuance, public request routing, bookmarks, and blog indexing.                   |
+| GitHub           | Repository/App installation access, Discussions, comments, reactions, and moderation.                   |
+| Blog template    | Public widget configuration, stable discussion mapping, placement, and theme synchronization.           |
+
+Comments are public GitHub Discussions, not private membership content. The separate [GitBlog Membership](https://github.com/gitblogapp/gitblog-membership) reader handles member-only articles.
+
+### Authentication and storage boundaries
+
+The GitBlog App may have CMS permissions. Its raw GitHub user token must never be sent to the original client-side GitHub API functions. GitBlog instead issues a one-hour encrypted, repository-bound comment ticket. Browser calls use that ticket only with the fork's server endpoints; server code validates the repository, App installation, allowed operation, and target discussion/comment/reaction before calling GitHub.
+
+Creating a missing discussion uses a single-repository installation token with Discussions-write access. User comments and reactions use the visitor's credential on the server. Private repositories are unsupported.
+
+Unlike the membership reader's in-memory token, the inherited giscus client persists its encrypted comment ticket in browser storage and handles the login callback parameter. Treat that ticket as a credential: do not share or log session-bearing URLs or request headers. Raw GitHub tokens and App private keys remain server-side.
+
+No separate Supabase, PostgREST, or Valkey service is required. Comment data lives in GitHub; bookmark data lives in GitBlog.
+
+## Development
+
+Use Node.js 22, as configured in CI, and npm:
+
+```sh
+npm ci
+npm run check
+npm test
+npm run build:worker
+npm run test:runtime
+```
+
+| Command                          | Purpose                                                             |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `npm run dev`                    | Start the Next.js development server.                               |
+| `npm run build`                  | Compile the embed script/themes and build Next.js with webpack.     |
+| `npm run build:worker`           | Build the Cloudflare Worker with OpenNext.                          |
+| `npm run preview:worker`         | Build and preview the Worker locally.                               |
+| `npm run test:runtime`           | Smoke-test the built Worker with workerd; run after `build:worker`. |
+| `npm run check`, `npm test`      | Type checking and regression tests.                                 |
+| `npm run format`, `npm run lint` | Formatting and lint checks.                                         |
+| `npm run deploy`                 | Build and deploy with OpenNext.                                     |
+
+See [.env.example](.env.example) for configuration names. Use local ignored environment files or platform secrets. End-to-end authentication requires the main GitBlog login flow and matching development configuration; this fork is not a standalone OAuth service.
+
+Source layout:
+
+```text
+client.ts                  Blog-side script and iframe integration
+pages/widget.tsx           Widget rendering and parent-origin checks
+components/                Comment, reaction, bookmark, and setup UI
+pages/api/gitblog/         Validated comment operations and Markdown rendering
+services/github/           GitHub API access and repository checks
+services/giscus/           Browser-facing widget services
+lib/gitblog-session.ts     Encrypted comment ticket validation
+styles/ and public/themes/ Widget styles and generated themes
+scripts/check-runtime.mjs  Built Worker smoke test
+```
+
+## Deployment and operations
+
+For service maintainers:
+
+1. Configure the public App identifiers and host in `wrangler.jsonc`. The checked-in values target the GitBlog deployment.
+2. Provision `AUTH_SECRET` to match the main GitBlog service and `GITHUB_PRIVATE_KEY` for its existing GitHub App. Store these as Worker secrets, never in this repository or frontend configuration.
+3. Run the development checks above, plus formatting and lint checks, then `npm run deploy`.
+4. Configure the main GitBlog Worker with this entry in its `services` array:
+
+   ```json
+   { "binding": "GISCUS", "service": "gitblog-giscus" }
+   ```
+
+5. Route the widget, client, theme, Next.js asset, and giscus API requests through that binding. Keep login and `/v1/reader/bookmarks` in the main GitBlog app; do not proxy the bookmark endpoint to this Worker.
+
+`workers.dev` and preview URLs are disabled. Do not attach a separate public hostname to the production Worker. The current fork assumes `https://gitblog.app` in several authentication and routing paths; changing the public host requires coordinated backend and client changes, not just a Wrangler variable.
+
+For a new bookmark integration, deploy the main app's database migrations and Worker before updating this widget. GitHub Actions verifies formatting, lint, tests, the OpenNext build, runtime behavior, and types. The current workflow does not automatically deploy.
+
+For release rollback, use `npx wrangler rollback <version-id>` after checking compatibility with the main GitBlog service. Detailed integration notes are in [GITBLOG.md](GITBLOG.md).
+
+## Troubleshooting
+
+| Symptom                               | Check                                                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Setup notice instead of comments      | Confirm the repository is public, Discussions is enabled, the GitBlog App is installed, and repository/category IDs are correct. |
+| Frame refused or widget returns 404   | Verify the repository's allowed origin, custom-domain status, and `giscus.json` restrictions.                                    |
+| Discussion not found                  | Verify the mapping. A missing discussion is created on the first eligible comment or reaction.                                   |
+| Login expired                         | Sign in again; the comment ticket expires and is repository-scoped.                                                              |
+| Bookmark unavailable                  | Confirm GitBlog has indexed the post with the same repository and discussion term.                                               |
+| Works in Next.js but fails on Workers | Run `build:worker` and `test:runtime`; verify the required secrets and Service Binding routing.                                  |
+
+## Attribution and license
+
+Based on [giscus](https://github.com/giscus/giscus), inspired by [utterances](https://github.com/utterance/utterances). The original authorship and [MIT license](LICENSE) are retained. See [CONTRIBUTING.md](CONTRIBUTING.md) for inherited contribution guidance.
+
+This English README documents the GitBlog fork. Existing translated `README.*.md` files are retained as upstream documentation and may not describe GitBlog-specific behavior. For the original standalone giscus service and its hosting instructions, see [giscus/giscus](https://github.com/giscus/giscus).
